@@ -1,6 +1,9 @@
 # Python cache
 __pycache__/
 *.py[cod]
+
+# Always track README assets (architecture diagrams, demo screenshots)
+!assets/
 *.pyo
 *.pyd
 .Python

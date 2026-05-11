@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MITM Project — Implementation Plan</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0b0f;
+    --bg2: #111318;
+    --bg3: #181b22;
+    --border: #1e2230;
+    --border2: #2a2f40;
+    --text: #e2e4ed;
+    --muted: #6b7280;
+    --dim: #3a3f52;
+    --red: #ff4d4d;
+    --red-dim: #2a1010;
+    --green: #22d98a;
+    --green-dim: #0a1f15;
+    --amber: #f5a623;
+    --amber-dim: #1e1608;
+    --blue: #4d9eff;
+    --blue-dim: #0a1525;
+    --purple: #a78bfa;
+    --purple-dim: #1a1030;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ── HEADER ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 48px 0 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 80% at 50% 120%, #ff4d4d08, transparent);
+    pointer-events: none;
+  }
+  .tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--red);
+    border: 1px solid #ff4d4d30;
+    background: #ff4d4d0a;
+    padding: 4px 12px;
+    border-radius: 3px;
+    margin-bottom: 20px;
+  }
+  h1 {
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    line-height: 1.1;
+    color: #fff;
+  }
+  h1 span { color: var(--red); }
+  .subtitle {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 14px;
+    font-family: var(--mono);
+  }
+
+  /* ── LAYOUT ── */
+  .wrap { max-width: 900px; margin: 0 auto; padding: 0 28px; }
+
+  /* ── SECTION HEADERS ── */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -.01em;
+    margin-bottom: 24px;
+  }
+  h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: .01em;
+  }
+
+  /* ── DAY CARD ── */
+  .day-block {
+    margin: 40px 0;
+  }
+  .day-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .day-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    padding: 6px 14px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .day-num.red    { background: var(--red-dim);    color: var(--red);    border: 1px solid #ff4d4d30; }
+  .day-num.green  { background: var(--green-dim);  color: var(--green);  border: 1px solid #22d98a30; }
+  .day-num.amber  { background: var(--amber-dim);  color: var(--amber);  border: 1px solid #f5a62330; }
+  .day-num.blue   { background: var(--blue-dim);   color: var(--blue);   border: 1px solid #4d9eff30; }
+  .day-num.purple { background: var(--purple-dim); color: var(--purple); border: 1px solid #a78bfa30; }
+
+  .day-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  /* ── STEPS ── */
+  .steps { display: flex; flex-direction: column; gap: 10px; }
+
+  .step {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .step-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 18px;
+  }
+  .step-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    min-width: 22px;
+    padding-top: 2px;
+  }
+  .step-content { flex: 1; }
+  .step-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .step-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .step-tool {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    margin-top: 8px;
+    font-weight: 700;
+    letter-spacing: .05em;
+  }
+  .tool-burp    { background: #ff6c0010; color: #ff6c00; border: 1px solid #ff6c0025; }
+  .tool-wire    { background: #1a6ef010; color: #4d9eff; border: 1px solid #4d9eff25; }
+  .tool-mitm    { background: #ff4d4d10; color: var(--red); border: 1px solid #ff4d4d25; }
+  .tool-python  { background: #3572a510; color: #5b9bd5; border: 1px solid #5b9bd525; }
+  .tool-vscode  { background: #007acc10; color: #4fc3f7; border: 1px solid #4fc3f725; }
+  .tool-term    { background: #22d98a10; color: var(--green); border: 1px solid #22d98a25; }
+  .tool-browser { background: #f5a62310; color: var(--amber); border: 1px solid #f5a62325; }
+
+  /* ── SUBSTEP LIST ── */
+  .substeps {
+    border-top: 1px solid var(--border);
+    padding: 0 18px 14px 54px;
+  }
+  .substep {
+    display: flex;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .substep:last-child { border-bottom: none; }
+  .substep::before {
+    content: '→';
+    color: var(--dim);
+    flex-shrink: 0;
+    margin-top: 1px;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .substep strong { color: var(--text); font-weight: 600; }
+  .substep code {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    color: #c9d1d9;
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+
+  /* ── TOOL SPOTLIGHT ── */
+  .tool-spotlight {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 32px 0;
+  }
+  .tool-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px;
+  }
+  .tool-card-name {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    letter-spacing: .05em;
+  }
+  .tool-card-role {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .tool-card-where {
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+
+  /* ── NETWORK DIAGRAM ── */
+  .net-diagram {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px;
+    margin: 32px 0;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 2;
+    overflow-x: auto;
+  }
+  .net-diagram .node-alice  { color: var(--blue);   font-weight: 700; }
+  .net-diagram .node-bob    { color: var(--green);  font-weight: 700; }
+  .net-diagram .node-mitm   { color: var(--red);    font-weight: 700; }
+  .net-diagram .node-server { color: var(--amber);  font-weight: 700; }
+  .net-diagram .port        { color: var(--purple); }
+  .net-diagram .arrow       { color: var(--dim); }
+  .net-diagram .label       { color: #3a3f52; font-size: 11px; }
+
+  /* ── SUMMARY TABLE ── */
+  .summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 24px 0;
+    font-size: 13px;
+  }
+  .summary-table th {
+    text-align: left;
+    padding: 10px 16px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .summary-table td {
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    vertical-align: top;
+  }
+  .summary-table tr:hover td { background: var(--bg2); }
+  .td-act { font-weight: 700; color: var(--text); }
+  .td-red    { color: var(--red); }
+  .td-green  { color: var(--green); }
+  .td-amber  { color: var(--amber); }
+
+  /* ── DIVIDER ── */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 48px 0;
+  }
+
+  /* ── EVIDENCE BOX ── */
+  .evidence {
+    background: var(--green-dim);
+    border: 1px solid #22d98a20;
+    border-left: 3px solid var(--green);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-size: 13px;
+    color: #a7f3d0;
+    line-height: 1.7;
+  }
+  .evidence strong { color: var(--green); font-weight: 600; }
+
+  .warning {
+    background: var(--amber-dim);
+    border: 1px solid #f5a62320;
+    border-left: 3px solid var(--amber);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-size: 13px;
+    color: #fde68a;
+    line-height: 1.7;
+  }
+  .warning strong { color: var(--amber); font-weight: 600; }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 0;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--dim);
+    letter-spacing: .08em;
+  }
+
+  /* ── SECTION BLOCK ── */
+  .section { padding: 48px 0; border-bottom: 1px solid var(--border); }
+  .section:last-child { border-bottom: none; }
+
+  @media (max-width: 600px) {
+    .wrap { padding: 0 16px; }
+    .tool-spotlight { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="tag">CyberPeace Foundation — Assignment</div>
+    <h1>MITM Attack <span>&</span> E2E Encryption<br>Implementation Plan</h1>
+    <p class="subtitle">Sanskar Phougat · B.Tech ECE · JIIT Noida · 7-day execution plan</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- OVERVIEW -->
+  <div class="section">
+    <div class="section-label">Overview</div>
+    <h2>What you're building & why</h2>
+    <p style="color:var(--muted); font-size:14px; margin-bottom:20px; line-height:1.8;">
+      A three-act live demo showing exactly how a MITM attacker intercepts unencrypted traffic, defeats naive E2E encryption by swapping RSA keys, and is completely stopped by fingerprint-verified E2E. Every act runs on your single laptop — five terminal windows, one Wireshark capture, one browser dashboard.
+    </p>
+
+    <div class="net-diagram">
+      <div><span class="node-alice">Alice</span> <span class="port">:5001</span> <span class="arrow">───────►</span> <span class="node-mitm">MITM Proxy</span> <span class="port">:8080</span> <span class="arrow">───────►</span> <span class="node-server">Server</span> <span class="port">:9000</span> <span class="arrow">───────►</span> <span class="node-bob">Bob</span> <span class="port">:5002</span></div>
+      <div style="margin-top:12px; font-size:11px; color:var(--dim);">
+        All on 127.0.0.1 · Five terminal windows running simultaneously · Wireshark on loopback interface
+      </div>
+    </div>
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Act</th>
+          <th>Alice sees</th>
+          <th>Bob sees</th>
+          <th>MITM sees</th>
+          <th>Wireshark</th>
+          <th>Real-world tool</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="td-act">Act 1 — Plaintext</td>
+          <td>Plaintext</td>
+          <td>Plaintext</td>
+          <td class="td-red">Full plaintext</td>
+          <td class="td-red">Plaintext bytes</td>
+          <td>Burp Suite</td>
+        </tr>
+        <tr>
+          <td class="td-act">Act 2 — Naive E2E</td>
+          <td>"Encrypted"</td>
+          <td>"Encrypted"</td>
+          <td class="td-red">Full plaintext</td>
+          <td>Ciphertext</td>
+          <td>mitmproxy</td>
+        </tr>
+        <tr>
+          <td class="td-act">Act 3 — Verified E2E</td>
+          <td>Encrypted</td>
+          <td>Encrypted</td>
+          <td class="td-green">Only ciphertext</td>
+          <td class="td-green">Ciphertext</td>
+          <td>mitmproxy (fails)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- TOOLS -->
+  <div class="section">
+    <div class="section-label">Tooling</div>
+    <h2>Every tool you'll use and exactly how</h2>
+
+    <div class="tool-spotlight">
+      <div class="tool-card">
+        <div class="tool-card-name" style="color:#ff6c00;">Burp Suite Community</div>
+        <div class="tool-card-role">HTTP intercept proxy. You set it to listen on port 8080. Alice's plaintext HTTP traffic routes through it. Burp's Intercept tab shows every message in readable form.</div>
+        <div class="tool-card-where">Used in → Act 1 only</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-card-name" style="color:#4d9eff;">Wireshark</div>
+        <div class="tool-card-role">Packet capture. Captures everything on the loopback interface. Gives you raw-byte evidence for each act — plaintext vs ciphertext packets side by side in your report.</div>
+        <div class="tool-card-where">Used in → All 3 acts</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-card-name" style="color:#ff4d4d;">mitmproxy</div>
+        <div class="tool-card-role">Professional MITM tool. You write a Python addon script that hooks into its message pipeline. Used as the attacker proxy for Act 2 (decrypts everything) and Act 3 (defeated).</div>
+        <div class="tool-card-where">Used in → Act 2 & 3</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-card-name" style="color:#5b9bd5;">Python 3</div>
+        <div class="tool-card-role">Everything runs in Python. server.py, alice.py, bob.py, mitm.py. Uses the cryptography library for RSA + AES-GCM. No external frameworks needed for the core demo.</div>
+        <div class="tool-card-where">Used in → Everything</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-card-name" style="color:#f5a623;">VS Code</div>
+        <div class="tool-card-role">Your editor. Split the terminal into 5 panes. Run each script in its own pane so you can see all output simultaneously during the demo.</div>
+        <div class="tool-card-where">Used in → All days</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-card-name" style="color:#22d98a;">Browser</div>
+        <div class="tool-card-role">Opens your dashboard (index.html). Shows the attacker's live view — what was intercepted, decrypted messages, key swap events. Visual proof for the report.</div>
+        <div class="tool-card-where">Used in → Day 5</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DAY 1 -->
+  <div class="section">
+    <div class="section-label">Day 1</div>
+    <h2>Act 1 — Unencrypted chat + Burp Suite + Wireshark proof</h2>
+
+    <div class="day-block">
+      <div class="steps">
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">01</div>
+            <div class="step-content">
+              <div class="step-title">Set up the project folder and install dependencies</div>
+              <div class="step-desc">Create the folder structure. Install the one library you need for crypto (used from Day 2 onward but install now).</div>
+              <span class="step-tool tool-term">Terminal</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Create a folder called <code>mitm_project</code> anywhere on your machine</div>
+            <div class="substep">Inside it, create subfolders: <code>dashboard/</code>, <code>screenshots/</code>, <code>report/</code></div>
+            <div class="substep">Open VS Code → File → Open Folder → select <code>mitm_project</code></div>
+            <div class="substep">Open VS Code terminal. Run: <code>pip install cryptography mitmproxy flask</code></div>
+            <div class="substep">Verify install: <code>python -c "from cryptography.hazmat.primitives.ciphers.aead import AESGCM; print('ok')"</code></div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">02</div>
+            <div class="step-content">
+              <div class="step-title">Write <code>crypto_utils.py</code> — your shared crypto helper file</div>
+              <div class="step-desc">Write this file first. Every other file imports from it. Contains RSA key generation, RSA encrypt/decrypt, AES-GCM encrypt/decrypt, and the key fingerprint function. No logic, just clean utility functions.</div>
+              <span class="step-tool tool-vscode">VS Code</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Create <code>crypto_utils.py</code> in the root of <code>mitm_project/</code></div>
+            <div class="substep"><strong>RSA section:</strong> function to generate a 2048-bit RSA keypair, function to serialize a public key to PEM bytes, function to deserialize PEM bytes back to a key object, RSA encrypt using OAEP+SHA256 padding, RSA decrypt</div>
+            <div class="substep"><strong>AES-GCM section:</strong> function that takes a 32-byte key + plaintext string → returns dict with base64-encoded nonce and ciphertext. Function that takes key + nonce + ciphertext → returns plaintext string</div>
+            <div class="substep"><strong>Fingerprint section:</strong> function that takes a public key → serializes it → SHA-256 hashes it → formats as 4 groups of 8 hex characters. This is the "safety number" Alice and Bob compare</div>
+            <div class="substep">Test it: open Python REPL, import the module, call each function, verify no errors</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">03</div>
+            <div class="step-content">
+              <div class="step-title">Write <code>server.py</code> — the relay server</div>
+              <div class="step-desc">The server is dumb. It accepts TCP connections on port 9000, keeps a list of connected clients, and when it receives data from one client it forwards it to all others. It never reads message content. It also keeps a list of recent messages in memory for the dashboard to read.</div>
+              <span class="step-tool tool-vscode">VS Code</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Binds a TCP socket to <code>127.0.0.1:9000</code></div>
+            <div class="substep">Each new connection spawns a thread. Thread receives data in a loop, broadcasts to all other connected sockets</div>
+            <div class="substep">Maintains a global <code>captured_log = []</code> list. Every relayed message appended with a timestamp</div>
+            <div class="substep">Prints to console: <code>[server] Alice → Bob: &lt;raw data&gt;</code> so you can see traffic live</div>
+            <div class="substep">Test: run <code>python server.py</code> in terminal 1, connect with <code>netcat 127.0.0.1 9000</code> in terminal 2 to confirm it accepts connections</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">04</div>
+            <div class="step-content">
+              <div class="step-title">Write <code>alice.py</code> and <code>bob.py</code> — plain mode only for now</div>
+              <div class="step-desc">Both clients accept a command-line flag that sets the mode: <code>plain</code>, <code>encrypted</code>, or <code>verified</code>. Today only implement <code>plain</code>. The client connects to either port 8080 (goes via MITM) or port 9000 (direct). In plain mode: reads input from keyboard, sends a JSON object with sender name and text, receives messages and prints them.</div>
+              <span class="step-tool tool-vscode">VS Code</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Alice connects to <code>127.0.0.1:8080</code> by default (MITM port). Bob connects to <code>127.0.0.1:8080</code> too</div>
+            <div class="substep">A background thread runs continuously receiving messages and printing them to console</div>
+            <div class="substep">Main thread reads from <code>input()</code> in a loop, sends each line as <code>{"sender": "alice", "text": "&lt;input&gt;"}</code> JSON</div>
+            <div class="substep">Bob is identical but with <code>"sender": "bob"</code></div>
+            <div class="substep">Test without MITM first: change target port to 9000 on both, run server.py, run alice.py plain, run bob.py plain, type messages, confirm they arrive</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">05</div>
+            <div class="step-content">
+              <div class="step-title">Set up Burp Suite as the Act 1 MITM tool</div>
+              <div class="step-desc">Burp Suite acts as the visible, professional-grade MITM proxy for Act 1. You configure it to listen on port 8080 and forward everything to your server on port 9000. It intercepts and displays every plaintext message in its UI — this is your screenshot evidence.</div>
+              <span class="step-tool tool-burp">Burp Suite</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Open Burp Suite Community Edition → New temporary project → Use Burp defaults</div>
+            <div class="substep">Go to <strong>Proxy → Options</strong> tab. Edit the existing listener: set it to <code>127.0.0.1:8080</code></div>
+            <div class="substep">Go to <strong>Proxy → Options → Upstream Proxy Servers</strong> → Add rule: all traffic forwards to <code>127.0.0.1:9000</code></div>
+            <div class="substep">Turn Intercept ON in the <strong>Proxy → Intercept</strong> tab</div>
+            <div class="substep">Run server.py in terminal 1. Run alice.py and bob.py pointing at port 8080. Type a message. Watch it appear in Burp's Intercept tab in full plaintext</div>
+            <div class="substep"><strong>Screenshot moment:</strong> capture Burp's Intercept tab showing the full message — this is Figure 1 in your report</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">06</div>
+            <div class="step-content">
+              <div class="step-title">Run Wireshark — capture Act 1 evidence</div>
+              <div class="step-desc">Wireshark captures the actual network packets. For Act 1, the packet payload is readable text. You'll save this capture and compare it to Act 2 and Act 3 captures in your report.</div>
+              <span class="step-tool tool-wire">Wireshark</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Open Wireshark. In the interface list, select <strong>Loopback / lo</strong> (or "Adapter for loopback traffic" on Windows)</div>
+            <div class="substep">Click the blue shark-fin Start button to begin capture</div>
+            <div class="substep">In the filter bar type: <code>tcp.port == 9000</code> and press Enter</div>
+            <div class="substep">With server, alice, bob all running — type a test message like "meet me at 5pm"</div>
+            <div class="substep">In Wireshark, click on a TCP packet. In the bottom pane under "Data" you'll see the message text in plaintext hex and ASCII</div>
+            <div class="substep"><strong>Screenshot moment:</strong> capture Wireshark showing the ASCII text visible in the packet payload — Figure 2 in your report</div>
+            <div class="substep">File → Save As → <code>screenshots/act1_wireshark.pcapng</code></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="evidence">
+        <strong>Day 1 done when:</strong> Alice types a message → Burp Suite Intercept tab shows it in plaintext → Wireshark shows the same text in the packet bytes → Bob receives it. Two screenshots saved.
+      </div>
+    </div>
+  </div>
+
+  <!-- DAY 2 -->
+  <div class="section">
+    <div class="section-label">Day 2</div>
+    <h2>Add RSA key exchange + AES-GCM encryption (Act 2 base)</h2>
+
+    <div class="day-block">
+      <div class="steps">
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">01</div>
+            <div class="step-content">
+              <div class="step-title">Understand the key exchange flow before writing any code</div>
+              <div class="step-desc">Draw this on paper first. Alice and Bob cannot share an AES key securely without first establishing trust. The flow is: both generate RSA keypairs → exchange public keys → Alice encrypts the AES session key with Bob's public key → sends it → Bob decrypts it with his private key → both now share one AES key → all messages encrypted with that key. The MITM attack in Act 2 targets Step 3: swap the public keys before they arrive.</div>
+              <span class="step-tool tool-vscode">VS Code</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">The private key NEVER leaves the device. Only public keys travel over the network</div>
+            <div class="substep">The AES session key is 32 random bytes, generated fresh per session by Alice</div>
+            <div class="substep">AES-GCM provides both encryption and authentication — the MITM cannot tamper with a message without the decryption failing</div>
+            <div class="substep">The weakness in Act 2: Alice and Bob trust whatever public key they receive, so the MITM swaps them with his own keys</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">02</div>
+            <div class="step-content">
+              <div class="step-title">Add <code>encrypted</code> mode to <code>alice.py</code></div>
+              <div class="step-desc">When run with the <code>encrypted</code> flag, Alice's startup sequence changes: generate RSA keypair, send public key to server, wait to receive Bob's public key, generate a 32-byte AES key, encrypt it with Bob's RSA public key, send it. Then use AES-GCM for all subsequent messages. No fingerprint check yet.</div>
+              <span class="step-tool tool-vscode">VS Code</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">At startup: call <code>generate_rsa_keypair()</code> from crypto_utils. Print: <code>[Alice] Generated RSA keypair</code></div>
+            <div class="substep">Send a JSON message with <code>"type": "key_exchange"</code>, <code>"sender": "alice"</code>, <code>"public_key": &lt;PEM string&gt;</code></div>
+            <div class="substep">Wait (blocking receive) for a reply with <code>"type": "key_exchange"</code> — this is Bob's public key. Deserialize it</div>
+            <div class="substep">Generate <code>aes_key = os.urandom(32)</code>. Encrypt it with Bob's received public key using <code>rsa_encrypt()</code></div>
+            <div class="substep">Send JSON with <code>"type": "session_key"</code>, <code>"encrypted_key": &lt;base64 string&gt;</code></div>
+            <div class="substep">Print: <code>[Alice] Session established. All messages now AES-GCM encrypted.</code></div>
+            <div class="substep">Chat loop: for each message typed, call <code>aes_encrypt(aes_key, text)</code>, add type and sender fields, send the JSON</div>
+            <div class="substep">Receiving thread: on getting a message-type packet, call <code>aes_decrypt()</code> and print the result</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">03</div>
+            <div class="step-content">
+              <div class="step-title">Add <code>encrypted</code> mode to <code>bob.py</code></div>
+              <div class="step-desc">Bob's flow is slightly different: he sends his public key, receives Alice's public key, then waits to receive the AES session key (encrypted with his public key), decrypts it with his private key. Then chats with AES-GCM.</div>
+              <span class="step-tool tool-vscode">VS Code</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Generate RSA keypair. Send public key with <code>"type": "key_exchange", "sender": "bob"</code></div>
+            <div class="substep">Wait for Alice's public key exchange message. Deserialize and store it (Bob doesn't use Alice's public key for the session key, but stores it)</div>
+            <div class="substep">Wait for the <code>"type": "session_key"</code> message. Decode the base64 ciphertext. Call <code>rsa_decrypt(bob_private_key, ciphertext)</code> → this gives you the 32-byte AES key</div>
+            <div class="substep">Print: <code>[Bob] Received and decrypted session key. Ready.</code></div>
+            <div class="substep">Chat loop identical to Alice: send/receive using aes_encrypt/aes_decrypt with the shared AES key</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">04</div>
+            <div class="step-content">
+              <div class="step-title">Test Act 2 base — encrypted chat working WITHOUT MITM</div>
+              <div class="step-desc">Before adding the MITM, verify the encrypted chat works end-to-end. Both clients connect directly to server port 9000, no proxy.</div>
+              <span class="step-tool tool-term">5 terminals</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Terminal 1: <code>python server.py</code></div>
+            <div class="substep">Terminal 2: <code>python alice.py encrypted</code> — temporarily hardcode target port as 9000</div>
+            <div class="substep">Terminal 3: <code>python bob.py encrypted</code></div>
+            <div class="substep">Watch the key exchange happen in both terminals — public key sent, received, session key established</div>
+            <div class="substep">Type messages. Confirm they arrive decrypted on the other side</div>
+            <div class="substep">Open Wireshark with <code>tcp.port == 9000</code> filter. Look at packet payload bytes — it should now be unreadable binary gibberish instead of plaintext text</div>
+            <div class="substep"><strong>Screenshot moment:</strong> Wireshark showing ciphertext bytes in packet — save as <code>screenshots/act2_wireshark_ciphertext.png</code></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="evidence">
+        <strong>Day 2 done when:</strong> Alice and Bob can complete the RSA key exchange and chat with AES-GCM encryption. Wireshark shows gibberish in the packets. No MITM yet.
+      </div>
+    </div>
+  </div>
+
+  <!-- DAY 3 -->
+  <div class="section">
+    <div class="section-label">Day 3</div>
+    <h2>Act 2 complete — MITM key swap + mitmproxy integration</h2>
+
+    <div class="day-block">
+      <div class="steps">
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">01</div>
+            <div class="step-content">
+              <div class="step-title">Write <code>mitm.py</code> — the TCP proxy with key-swap logic</div>
+              <div class="step-desc">This is the most complex file. It's a TCP proxy that listens on port 8080 and forwards to port 9000. The key-swap logic lives here. When it sees a key_exchange message, it replaces the public key with its own. When it sees a session_key message, it decrypts it with its own private key (since Alice encrypted to MITM's key), then re-encrypts with the real recipient's key and forwards. Every message type is logged with its decrypted content.</div>
+              <span class="step-tool tool-vscode">VS Code</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Generate MITM's own RSA keypair at startup: <code>mitm_priv, mitm_pub = generate_rsa_keypair()</code>. Print the fingerprint so you can show it doesn't match Alice/Bob's</div>
+            <div class="substep">TCP server listening on <code>127.0.0.1:8080</code>. Each accepted connection spawns a thread</div>
+            <div class="substep">Each thread opens its own connection to <code>127.0.0.1:9000</code> (the real server)</div>
+            <div class="substep">Per-session state dict: stores <code>alice_real_pub_key</code>, <code>bob_real_pub_key</code>, <code>alice_aes_key</code>, <code>bob_aes_key</code></div>
+            <div class="substep"><strong>On key_exchange from Alice:</strong> save her real public key in state. Replace <code>"public_key"</code> field with MITM's serialized public key. Forward the modified message. Print: <code>[MITM] ⚠ Swapped Alice's RSA public key</code></div>
+            <div class="substep"><strong>On key_exchange from Bob (coming back from server):</strong> save Bob's real public key. Replace with MITM's key. Forward modified. Print swap notice</div>
+            <div class="substep"><strong>On session_key from Alice:</strong> decode base64 ciphertext. RSA-decrypt with MITM's private key → get AES session key. Store as <code>alice_aes_key</code>. Re-encrypt the same AES key using Bob's REAL public key. Replace encrypted_key field. Forward</div>
+            <div class="substep"><strong>On message from Alice/Bob:</strong> AES-GCM decrypt using stored key. Log the plaintext. Forward original ciphertext unchanged</div>
+            <div class="substep">Two threads per session: one reading from client→server direction, one reading server→client direction</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">02</div>
+            <div class="step-content">
+              <div class="step-title">Test Act 2 with your Python MITM proxy</div>
+              <div class="step-desc">Run all five components simultaneously. Alice and Bob think they're encrypted. MITM reads everything. This is the core demo moment.</div>
+              <span class="step-tool tool-term">5 terminals</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Terminal 1: <code>python server.py</code></div>
+            <div class="substep">Terminal 2: <code>python mitm.py</code> — watch it print MITM's own fingerprint at startup</div>
+            <div class="substep">Terminal 3: <code>python alice.py encrypted</code> — target port 8080 (through MITM)</div>
+            <div class="substep">Terminal 4: <code>python bob.py encrypted</code> — target port 8080 (through MITM)</div>
+            <div class="substep">Watch terminal 2: you'll see "Swapped Alice's RSA key" and "Swapped Bob's RSA key" printed during handshake</div>
+            <div class="substep">Alice and Bob complete the handshake — both print "Session established" — they have no idea</div>
+            <div class="substep">Alice types "hello bob this is secret". Terminal 2 prints: <code>[MITM] DECRYPTED (alice→): hello bob this is secret</code></div>
+            <div class="substep"><strong>Screenshot moment:</strong> side-by-side screenshot of Alice's terminal (shows sent), MITM's terminal (shows decrypted plaintext), Bob's terminal (shows received) — this is the money shot</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">03</div>
+            <div class="step-content">
+              <div class="step-title">Also demonstrate with mitmproxy tool (the professional version)</div>
+              <div class="step-desc">mitmproxy is a real-world tool used by security researchers. Write a small mitmproxy addon script that does the same key-swap. This shows evaluators you know professional tools, not just your own code.</div>
+              <span class="step-tool tool-mitm">mitmproxy</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Create file <code>mitm_addon.py</code>. This is a mitmproxy addon — a Python class with <code>request()</code> and <code>response()</code> methods that mitmproxy calls for every intercepted message</div>
+            <div class="substep">In the <code>request()</code> method: read the request body, parse as JSON. If it contains a <code>key_exchange</code> type, replace the public_key field with MITM's own key. Modify the request body in place</div>
+            <div class="substep">Run with: <code>mitmproxy -s mitm_addon.py --listen-port 8080 --mode reverse:http://127.0.0.1:9000</code></div>
+            <div class="substep">mitmproxy shows a live TUI (terminal UI) with every intercepted request. You can press Enter on any entry to see its full content</div>
+            <div class="substep"><strong>Screenshot moment:</strong> mitmproxy TUI showing the intercepted messages. Save as <code>screenshots/act2_mitmproxy.png</code></div>
+            <div class="substep">In your report: mention that mitmproxy is the same tool used in professional penetration testing and TLS interception setups</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="evidence">
+        <strong>Day 3 done when:</strong> Alice sends an "encrypted" message → MITM terminal shows it in plaintext → Bob receives it. Both your Python proxy and mitmproxy demonstrate the attack. Three new screenshots saved.
+      </div>
+    </div>
+  </div>
+
+  <!-- DAY 4 -->
+  <div class="section">
+    <div class="section-label">Day 4</div>
+    <h2>Act 3 — Fingerprint verification defeats the MITM</h2>
+
+    <div class="day-block">
+      <div class="steps">
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">01</div>
+            <div class="step-content">
+              <div class="step-title">Add <code>verified</code> mode to <code>alice.py</code> and <code>bob.py</code></div>
+              <div class="step-desc">Identical to encrypted mode but with one addition: after receiving the other party's public key, Alice and Bob both display their key fingerprint and the fingerprint of the received key. They then prompt: "Does this match what the other person sees? [yes/no]". If no → abort. This is exactly how WhatsApp Safety Numbers and Signal's safety numbers work.</div>
+              <span class="step-tool tool-vscode">VS Code</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">After receiving Bob's public key, Alice calls <code>key_fingerprint(received_key)</code> from crypto_utils</div>
+            <div class="substep">Alice prints a box like:<br><code>╔══ FINGERPRINT CHECK ══╗</code><br><code>║ Received key: a1b2c3d4 e5f6a7b8 c9d0e1f2 a3b4c5d6</code><br><code>╚═══════════════════════╝</code></div>
+            <div class="substep">Prompt: <code>input("Does Bob see the same fingerprint? [yes/no]: ")</code></div>
+            <div class="substep">If answer is "yes" → continue to session key exchange and chat</div>
+            <div class="substep">If answer is anything else → print <code>⚠ MITM ATTACK DETECTED. Aborting session.</code> → close socket → exit</div>
+            <div class="substep">Bob has the same check on Alice's key fingerprint</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">02</div>
+            <div class="step-content">
+              <div class="step-title">Run the Act 3 demo — MITM fails</div>
+              <div class="step-desc">Run the exact same setup as Act 2 (MITM proxy running). But this time use the <code>verified</code> mode. Alice and Bob will see different fingerprints because MITM swapped the keys. When Alice types "no", the session aborts. MITM cannot read anything.</div>
+              <span class="step-tool tool-term">5 terminals</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Terminal 1: <code>python server.py</code></div>
+            <div class="substep">Terminal 2: <code>python mitm.py</code> — MITM is still running, still trying to intercept</div>
+            <div class="substep">Terminal 3: <code>python alice.py verified</code></div>
+            <div class="substep">Terminal 4: <code>python bob.py verified</code></div>
+            <div class="substep">Both Alice and Bob print a fingerprint. Alice's shows MITM's key (because MITM swapped it). Bob's shows MITM's key too — but it's a DIFFERENT MITM key for each side because MITM inserted himself as two separate entities</div>
+            <div class="substep">Type "no" when prompted. Both clients print the red warning and exit</div>
+            <div class="substep">Check MITM's terminal — it shows the key swap happened but the session never completed, so it has zero message content</div>
+            <div class="substep"><strong>Screenshot moment 1:</strong> Alice's terminal showing the fingerprint mismatch warning — Figure X in report</div>
+            <div class="substep"><strong>Screenshot moment 2:</strong> MITM's terminal showing it intercepted the key exchange but got no messages — Figure Y</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">03</div>
+            <div class="step-content">
+              <div class="step-title">Also run Act 3 WITHOUT MITM — show green path</div>
+              <div class="step-desc">Run Alice and Bob verified mode connecting directly to server (bypass MITM). Now the fingerprints match because the keys weren't swapped. Show the happy path — fingerprints identical → session proceeds → chat works.</div>
+              <span class="step-tool tool-term">Terminal</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Change alice.py and bob.py target port temporarily to 9000 (skip MITM)</div>
+            <div class="substep">Run server, alice verified, bob verified. Both print the same fingerprint</div>
+            <div class="substep">Both type "yes". Session proceeds. Chat works</div>
+            <div class="substep"><strong>Screenshot:</strong> both terminals showing identical fingerprints and green "Verified" message — contrasts clearly with the MITM case</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="evidence">
+        <strong>Day 4 done when:</strong> With MITM running → fingerprints mismatch → session aborts → MITM gets nothing. Without MITM → fingerprints match → session proceeds. Four screenshots saved.
+      </div>
+    </div>
+  </div>
+
+  <!-- DAY 5 -->
+  <div class="section">
+    <div class="section-label">Day 5</div>
+    <h2>Live attacker dashboard — <code>dashboard/index.html</code></h2>
+
+    <div class="day-block">
+      <div class="steps">
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">01</div>
+            <div class="step-content">
+              <div class="step-title">Add a tiny Flask API to <code>mitm.py</code></div>
+              <div class="step-desc">Add 10 lines to mitm.py that starts a Flask server on port 7000 in a background thread. It exposes one endpoint: <code>GET /api/log</code> which returns the last 50 captured messages as JSON.</div>
+              <span class="step-tool tool-python">Python + Flask</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Add <code>from flask import Flask, jsonify</code> to mitm.py imports</div>
+            <div class="substep">Create a global list <code>attack_log = []</code>. Every time MITM intercepts something, append a dict: <code>{"time": "HH:MM:SS", "event": "KEY_SWAP" or "DECRYPTED", "sender": "alice"/"bob", "content": "..."}</code></div>
+            <div class="substep">Create Flask app with single route <code>/api/log</code> returning <code>jsonify(attack_log[-50:])</code></div>
+            <div class="substep">Start Flask in a daemon thread at the bottom of mitm.py so it doesn't block the TCP proxy</div>
+            <div class="substep">Test: run mitm.py, open browser to <code>http://127.0.0.1:7000/api/log</code> → should return an empty JSON array initially</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">02</div>
+            <div class="step-content">
+              <div class="step-title">Build <code>dashboard/index.html</code></div>
+              <div class="step-desc">A single HTML file with no framework. Dark hacker aesthetic. Polls <code>/api/log</code> every second using <code>setInterval + fetch</code>. Renders a live feed of intercept events. Shows key swap events in red, decrypted messages in yellow, session abort events in green.</div>
+              <span class="step-tool tool-browser">Browser + VS Code</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep"><strong>Layout:</strong> top bar showing "MITM DASHBOARD — LIVE" in monospace. Below: a scrolling log feed. Each entry is a row with timestamp, event type badge, sender, and content</div>
+            <div class="substep"><strong>Color coding:</strong> KEY_SWAP events → red badge. DECRYPTED messages → amber badge. SESSION_ABORT events → green badge. Makes the story readable at a glance</div>
+            <div class="substep">JavaScript: <code>setInterval(() => fetch('/api/log').then(r => r.json()).then(renderLog), 1000)</code></div>
+            <div class="substep"><code>renderLog()</code> function: clears the feed div, iterates the array in reverse (newest at top), creates a div for each entry with appropriate color class, appends to feed</div>
+            <div class="substep">Add a counter at the top: "X messages intercepted | Y key swaps | Z sessions aborted" — computed from the log array</div>
+            <div class="substep">Test: run full Act 2 demo, open dashboard in browser, watch events appear in real time as you type messages in Alice's terminal</div>
+            <div class="substep"><strong>Screenshot moment:</strong> browser showing the dashboard with live decrypted messages — a key visual for your report</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="evidence">
+        <strong>Day 5 done when:</strong> Open browser at 127.0.0.1:7000 → see live dashboard → type messages as Alice → messages appear in the dashboard in real time. One dashboard screenshot saved.
+      </div>
+    </div>
+  </div>
+
+  <!-- DAY 6 -->
+  <div class="section">
+    <div class="section-label">Day 6</div>
+    <h2>Write the report</h2>
+
+    <div class="day-block">
+      <div class="steps">
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">01</div>
+            <div class="step-content">
+              <div class="step-title">Section 1 — Introduction (1 page)</div>
+              <div class="step-desc">Define MITM. State why it matters for CPF's mission. Name the three acts. State your key finding upfront: verified E2E encryption is mathematically unbreakable by a MITM; unverified key exchange is the single point of failure.</div>
+              <span class="step-tool tool-vscode">VS Code / Word</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Define MITM in one paragraph: an attacker who positions himself between two communicating parties and relays (and possibly modifies) their messages</div>
+            <div class="substep">Anchor to CPF context: this is relevant to public WiFi attacks, phishing infrastructure, and corporate espionage</div>
+            <div class="substep">Name the security principles at play: CIA triad (confidentiality broken in Acts 1+2), Kerckhoffs's principle (the algorithm is public; only the key is secret), Trust On First Use (TOFU)</div>
+            <div class="substep">One-paragraph overview of the demo setup: single laptop, localhost ports simulating three machines, real tools Burp Suite / Wireshark / mitmproxy</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">02</div>
+            <div class="step-content">
+              <div class="step-title">Sections 2, 3, 4 — The three acts (2 pages each)</div>
+              <div class="step-desc">Each act section follows the same structure: what the attacker can see and why, the technical mechanism, your screenshots as figures, and what a real-world attacker would do with this access.</div>
+              <span class="step-tool tool-vscode">VS Code / Word</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep"><strong>Act 1 structure:</strong> how HTTP works (no encryption), how Burp Suite intercepts, Burp screenshot (Figure 1), Wireshark screenshot (Figure 2), real-world parallel: public WiFi café attack</div>
+            <div class="substep"><strong>Act 2 structure:</strong> how RSA+AES key exchange works, what the MITM key swap does and why Alice/Bob can't tell, MITM terminal screenshot (Figure 3), mitmproxy screenshot (Figure 4), Wireshark showing ciphertext but MITM still succeeds (Figure 5). Real-world parallel: DigiNotar 2011 — a compromised CA issued fraudulent certificates for Google domains, enabling nation-state MITM on thousands of Iranian users</div>
+            <div class="substep"><strong>Act 3 structure:</strong> what a key fingerprint is (SHA-256 hash of the public key), why the MITM cannot produce a matching fingerprint (private key never leaves the device), fingerprint mismatch screenshot (Figure 6), MITM getting nothing screenshot (Figure 7). Real-world parallel: WhatsApp Safety Numbers, Signal's safety numbers, SSH host key verification</div>
+            <div class="substep">For each act: one paragraph on "what a real attacker gains" — Act 1: reads everything. Act 2: reads everything, can modify messages silently. Act 3: gains nothing</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">03</div>
+            <div class="step-content">
+              <div class="step-title">Section 5 — Wireshark evidence (1 page)</div>
+              <div class="step-desc">Side-by-side comparison of the three Wireshark captures. The visual contrast between Act 1 (readable text in packets) and Acts 2+3 (binary gibberish) is one of the most compelling visuals in the report.</div>
+              <span class="step-tool tool-wire">Wireshark</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Open your three saved .pcapng files. Take a screenshot of the same type of message in each: a chat message packet</div>
+            <div class="substep">In Act 1: highlight the ASCII pane at the bottom — "meet me at 5pm" visible in plain bytes</div>
+            <div class="substep">In Act 2: highlight the same pane — random-looking hex bytes. Caption: "Ciphertext — unreadable to a passive observer, but MITM decrypted it in-flight"</div>
+            <div class="substep">In Act 3: same pane — random bytes. Caption: "Ciphertext — MITM also sees only this, cannot decrypt"</div>
+            <div class="substep">Key insight to write: Wireshark alone cannot distinguish Act 2 from Act 3 at the packet level. The difference is in whether the key exchange was verified</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">04</div>
+            <div class="step-content">
+              <div class="step-title">Section 6 — Real-world mapping + Conclusion (1 page)</div>
+              <div class="step-desc">Connect your demo to real systems and give concrete user-facing recommendations.</div>
+              <span class="step-tool tool-vscode">VS Code / Word</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep"><strong>WhatsApp / Signal safety numbers:</strong> exactly what you implemented. Both apps generate a 60-digit safety number from the key fingerprints. Users can compare out-of-band (in person, phone call) to verify no MITM</div>
+            <div class="substep"><strong>TLS and Certificate Authorities:</strong> TLS solves the key verification problem using a chain of trust — your browser trusts a CA, the CA vouches for the server's key. The DigiNotar breach showed what happens when that chain is compromised</div>
+            <div class="substep"><strong>SSH host key verification:</strong> "The authenticity of host can't be established. Are you sure you want to continue?" — this is your Act 3 fingerprint check, built into SSH</div>
+            <div class="substep"><strong>STRIDE mapping:</strong> label each act — Act 1: Tampering + Information Disclosure. Act 2: Spoofing + Information Disclosure. Act 3: Spoofing attempt, defeated by Authentication</div>
+            <div class="substep"><strong>Recommendations:</strong> always verify safety numbers for sensitive communications. Use TLS everywhere. Never accept SSH host key changes without verification. Use HPKP or certificate pinning for high-value apps</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- DAY 7 -->
+  <div class="section">
+    <div class="section-label">Day 7</div>
+    <h2>Final run-through, screenshots, cleanup, submission</h2>
+
+    <div class="day-block">
+      <div class="steps">
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">01</div>
+            <div class="step-content">
+              <div class="step-title">Full clean run of all three acts — record terminal output</div>
+              <div class="step-desc">Do one complete demo run of all three acts from scratch. Fresh terminal windows. No stale state. Record every terminal output. This is your final evidence set.</div>
+              <span class="step-tool tool-term">5 terminals</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Use Windows Terminal or iTerm2 to split into panes. Set font size large enough to be legible in screenshots</div>
+            <div class="substep"><strong>Act 1 run:</strong> server.py + mitm.py + alice plain + bob plain. Type 3–4 messages. Screenshot Burp. Screenshot Wireshark</div>
+            <div class="substep"><strong>Act 2 run:</strong> same but alice encrypted + bob encrypted. Watch key swap in MITM terminal. Type messages. Screenshot MITM terminal. Screenshot dashboard. Screenshot Wireshark</div>
+            <div class="substep"><strong>Act 3 run with MITM:</strong> alice verified + bob verified + MITM running. Show mismatch. Type "no". Screenshot warning. Screenshot MITM getting nothing</div>
+            <div class="substep"><strong>Act 3 run without MITM:</strong> alice verified + bob verified + NO mitm (connect directly to server). Show matching fingerprints. Type "yes". Chat works. Screenshot</div>
+            <div class="substep">Save all screenshots to <code>screenshots/</code> with clear names: <code>act1_burp.png</code>, <code>act2_mitm_decrypts.png</code>, <code>act3_mismatch.png</code> etc.</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">02</div>
+            <div class="step-content">
+              <div class="step-title">Insert screenshots into report, finalize text</div>
+              <div class="step-desc">Add all figures to the report with captions. Each caption should explain what the screenshot proves, not just describe what it shows.</div>
+              <span class="step-tool tool-vscode">Word / VS Code</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Every figure caption follows the pattern: "Figure N — [what it shows]. [What this proves about the security claim]."</div>
+            <div class="substep">Example: "Figure 3 — MITM terminal showing decrypted plaintext of Alice's AES-GCM encrypted message. This demonstrates that without key fingerprint verification, E2E encryption provides no protection against an active MITM."</div>
+            <div class="substep">Check that every claim in the text has a corresponding figure. Check that every figure is referenced in the text</div>
+            <div class="substep">Add line numbers or timestamps to terminal screenshots if the evaluator might want to correlate events across windows</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">03</div>
+            <div class="step-content">
+              <div class="step-title">Code cleanup and comments</div>
+              <div class="step-desc">Add comments to each file explaining what it does and why. Remove debug prints that aren't relevant to the demo. Make sure each file has a header comment explaining its role in the three-act demo.</div>
+              <span class="step-tool tool-vscode">VS Code</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Each file top comment: file name, role (e.g. "Alice client — simulates the sender in all three acts"), usage (e.g. <code>python alice.py [plain|encrypted|verified]</code>)</div>
+            <div class="substep">Each function has a one-line docstring</div>
+            <div class="substep">Key sections in mitm.py have inline comments: <code># Key swap — MITM replaces Alice's real public key with its own</code></div>
+            <div class="substep">Verify: run each file one more time after cleanup to confirm no syntax errors</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">04</div>
+            <div class="step-content">
+              <div class="step-title">Package and submit</div>
+              <div class="step-desc">Zip the project. Name it clearly. Verify the zip contains everything needed to run the demo from scratch.</div>
+              <span class="step-tool tool-term">Terminal</span>
+            </div>
+          </div>
+          <div class="substeps">
+            <div class="substep">Final folder check: <code>server.py</code>, <code>alice.py</code>, <code>bob.py</code>, <code>mitm.py</code>, <code>crypto_utils.py</code>, <code>dashboard/index.html</code>, <code>screenshots/</code> (all PNGs + pcapng files), <code>report/report.pdf</code></div>
+            <div class="substep">Create a <code>README.md</code> with: one-paragraph project description, list of dependencies (<code>pip install cryptography mitmproxy flask</code>), how to run each act (which terminals to open, which commands to run, in what order)</div>
+            <div class="substep">Zip: <code>Sanskar_Phougat_MITM_Assignment.zip</code></div>
+            <div class="substep">Unzip in a new folder, follow your own README, confirm everything works — if you can run it fresh from the zip, so can the evaluator</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="warning">
+        <strong>Before submitting:</strong> make sure your report explicitly states "all tests conducted on localhost (127.0.0.1) in a controlled single-machine environment." This makes it crystal clear you didn't attack any real network.
+      </div>
+    </div>
+  </div>
+
+  <!-- EVIDENCE CHECKLIST -->
+  <div class="section">
+    <div class="section-label">Evidence checklist</div>
+    <h2>Screenshots you must have before Day 7 ends</h2>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-head">
+          <div class="step-num" style="color:var(--red); font-family:var(--mono); font-size:11px; min-width:22px; padding-top:2px;">A1</div>
+          <div class="step-content">
+            <div class="step-title">Act 1 — Burp Suite intercept tab showing plaintext message</div>
+            <div class="step-desc">The full message body visible in Burp's HTTP/TCP intercept window. This proves an attacker on a plaintext connection reads everything.</div>
+            <span class="step-tool tool-burp">Burp Suite</span>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-head">
+          <div class="step-num" style="color:var(--red); font-family:var(--mono); font-size:11px; min-width:22px; padding-top:2px;">A2</div>
+          <div class="step-content">
+            <div class="step-title">Act 1 — Wireshark packet showing plaintext in ASCII pane</div>
+            <div class="step-desc">The packet selected, bottom pane showing the message text in readable ASCII.</div>
+            <span class="step-tool tool-wire">Wireshark</span>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-head">
+          <div class="step-num" style="color:var(--amber); font-family:var(--mono); font-size:11px; min-width:22px; padding-top:2px;">B1</div>
+          <div class="step-content">
+            <div class="step-title">Act 2 — MITM terminal showing decrypted plaintext + Alice/Bob terminals</div>
+            <div class="step-desc">Side-by-side: Alice's terminal shows "sent encrypted message". MITM terminal shows the decrypted plaintext. Bob receives it. This is the core proof of Act 2.</div>
+            <span class="step-tool tool-term">3 terminals</span>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-head">
+          <div class="step-num" style="color:var(--amber); font-family:var(--mono); font-size:11px; min-width:22px; padding-top:2px;">B2</div>
+          <div class="step-content">
+            <div class="step-title">Act 2 — mitmproxy TUI showing intercepted messages</div>
+            <div class="step-desc">mitmproxy's terminal UI with the live message list. Shows you used a professional real-world tool, not just your own code.</div>
+            <span class="step-tool tool-mitm">mitmproxy</span>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-head">
+          <div class="step-num" style="color:var(--amber); font-family:var(--mono); font-size:11px; min-width:22px; padding-top:2px;">B3</div>
+          <div class="step-content">
+            <div class="step-title">Act 2 — Live dashboard showing intercepted messages</div>
+            <div class="step-desc">Browser open at 127.0.0.1:7000 showing the attacker dashboard with key swap events and decrypted message feed.</div>
+            <span class="step-tool tool-browser">Browser</span>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-head">
+          <div class="step-num" style="color:var(--green); font-family:var(--mono); font-size:11px; min-width:22px; padding-top:2px;">C1</div>
+          <div class="step-content">
+            <div class="step-title">Act 3 — Fingerprint mismatch warning (with MITM active)</div>
+            <div class="step-desc">Alice's terminal showing the red warning: fingerprints don't match, session aborted. MITM is running but gets nothing.</div>
+            <span class="step-tool tool-term">Terminal</span>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-head">
+          <div class="step-num" style="color:var(--green); font-family:var(--mono); font-size:11px; min-width:22px; padding-top:2px;">C2</div>
+          <div class="step-content">
+            <div class="step-title">Act 3 — Matching fingerprints (without MITM)</div>
+            <div class="step-desc">Alice and Bob connecting directly. Both terminals show the same fingerprint string. Both type "yes". Chat proceeds. This shows the system works correctly in the non-attack scenario.</div>
+            <span class="step-tool tool-term">Terminal</span>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-head">
+          <div class="step-num" style="color:var(--blue); font-family:var(--mono); font-size:11px; min-width:22px; padding-top:2px;">W1</div>
+          <div class="step-content">
+            <div class="step-title">Wireshark side-by-side — Act 1 vs Act 2/3 packet bytes</div>
+            <div class="step-desc">Two Wireshark windows open. One shows plaintext in the packet. The other shows ciphertext. The visual contrast makes the encryption tangible.</div>
+            <span class="step-tool tool-wire">Wireshark</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    Sanskar Phougat · CyberPeace Foundation Assignment · JIIT Noida · 7-day plan
+  </div>
+</footer>
+
+</body>
+</html>

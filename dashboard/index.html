@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MITM Dashboard — Live Attacker View</title>
+<meta name="description" content="Live attacker dashboard showing MITM intercept events, decrypted messages, and key swap operations in real time.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg:       #070810;
+    --bg2:      #0d0f1a;
+    --bg3:      #131623;
+    --border:   #1a1f35;
+    --border2:  #252b45;
+    --text:     #d8dce8;
+    --muted:    #5a6280;
+    --dim:      #2e3550;
+
+    --red:      #ff4d4d;
+    --red-dim:  #1c0808;
+    --amber:    #f59e0b;
+    --amber-dim:#1c1302;
+    --green:    #22d98a;
+    --green-dim:#041510;
+    --blue:     #4d9eff;
+    --blue-dim: #040e1c;
+    --purple:   #a78bfa;
+
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── SCANLINE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,.15) 2px,
+      rgba(0,0,0,.15) 4px
+    );
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  /* ── TOP BAR ── */
+  #topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 52px;
+  }
+
+  #topbar .logo {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 15px;
+    color: var(--red);
+    letter-spacing: -.01em;
+    margin-right: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  #topbar .logo::before {
+    content: '☠';
+    font-size: 18px;
+  }
+
+  #pulse {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 8px var(--red);
+    animation: pulse 1s ease-in-out infinite alternate;
+    margin-right: 8px;
+  }
+
+  @keyframes pulse {
+    from { opacity: 1; box-shadow: 0 0 8px var(--red); }
+    to   { opacity: .4; box-shadow: 0 0 2px var(--red); }
+  }
+
+  .live-tag {
+    font-size: 10px;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: var(--red);
+    padding: 3px 10px;
+    border: 1px solid #ff4d4d30;
+    background: #ff4d4d08;
+    border-radius: 3px;
+    margin-right: 20px;
+  }
+
+  #clock {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  /* ── STAT CARDS ── */
+  #stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat-card {
+    background: var(--bg2);
+    padding: 18px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    font-family: var(--sans);
+    line-height: 1;
+    transition: color .3s;
+  }
+
+  #stat-total   .stat-value { color: var(--text); }
+  #stat-decrypt .stat-value { color: var(--amber); }
+  #stat-swap    .stat-value { color: var(--red); }
+  #stat-abort   .stat-value { color: var(--green); }
+
+  /* ── MAIN LAYOUT ── */
+  #main {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    height: calc(100vh - 52px - 89px);
+  }
+
+  /* ── FEED ── */
+  #feed-wrap {
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #feed-header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  #feed {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 0;
+    display: flex;
+    flex-direction: column-reverse; /* newest at top */
+  }
+
+  #feed::-webkit-scrollbar { width: 4px; }
+  #feed::-webkit-scrollbar-track { background: transparent; }
+  #feed::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .entry {
+    display: grid;
+    grid-template-columns: 72px 110px 70px 1fr;
+    gap: 0 12px;
+    align-items: start;
+    padding: 8px 20px;
+    border-bottom: 1px solid var(--border);
+    animation: fadeIn .3s ease;
+    transition: background .15s;
+  }
+
+  .entry:hover { background: var(--bg2); }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .entry-time { color: var(--muted); font-size: 11px; padding-top: 1px; }
+
+  .badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    padding: 2px 8px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .badge-key_swap     { background: var(--red-dim);   color: var(--red);   border: 1px solid #ff4d4d30; }
+  .badge-decrypted    { background: var(--amber-dim);  color: var(--amber); border: 1px solid #f59e0b30; }
+  .badge-session_key  { background: var(--blue-dim);   color: var(--blue);  border: 1px solid #4d9eff30; }
+  .badge-session_abort{ background: var(--green-dim);  color: var(--green); border: 1px solid #22d98a30; }
+  .badge-relayed      { background: var(--bg3);        color: var(--muted); border: 1px solid var(--border2); }
+
+  .entry-sender { color: var(--purple); font-size: 11px; padding-top: 2px; }
+
+  .entry-content {
+    color: var(--text);
+    font-size: 12px;
+    word-break: break-all;
+    line-height: 1.5;
+  }
+
+  .entry-content.decrypted { color: var(--amber); }
+  .entry-content.keyswap   { color: var(--red); }
+  .entry-content.abort     { color: var(--green); }
+
+  /* ── SIDEBAR ── */
+  #sidebar {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-section {
+    border-bottom: 1px solid var(--border);
+    padding: 14px 18px;
+  }
+
+  .sidebar-label {
+    font-size: 9px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .info-row:last-child { border-bottom: none; }
+  .info-val { color: var(--text); font-size: 11px; }
+
+  .fp-box {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    padding: 10px 12px;
+    font-size: 11px;
+    color: var(--red);
+    letter-spacing: .04em;
+    word-break: break-all;
+    line-height: 1.8;
+  }
+
+  /* network diagram */
+  .net-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .node { font-weight: 700; font-size: 11px; }
+  .node.alice  { color: var(--blue); }
+  .node.mitm   { color: var(--red); }
+  .node.server { color: var(--amber); }
+  .node.bob    { color: var(--green); }
+
+  #empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    gap: 10px;
+    font-size: 13px;
+  }
+
+  #empty-state .icon { font-size: 42px; opacity: .3; }
+
+  /* ── FOOTER BAR ── */
+  #footer-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0; right: 0;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    padding: 8px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-size: 10px;
+    letter-spacing: .08em;
+    color: var(--muted);
+  }
+
+  #footer-bar .sep { color: var(--border2); }
+
+  #poll-status { margin-left: auto; }
+  #poll-status.ok  { color: var(--green); }
+  #poll-status.err { color: var(--red); }
+
+  @media (max-width: 900px) {
+    #stats { grid-template-columns: repeat(2, 1fr); }
+    #main  { grid-template-columns: 1fr; }
+    #sidebar { display: none; }
+    .entry { grid-template-columns: 60px 90px 60px 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="logo">
+    MITM ATTACKER DASHBOARD
+  </div>
+  <div id="pulse"></div>
+  <div class="live-tag">LIVE</div>
+  <div id="clock">--:--:--</div>
+</div>
+
+<!-- STATS -->
+<div id="stats">
+  <div class="stat-card" id="stat-total">
+    <div class="stat-label">Total events</div>
+    <div class="stat-value" id="val-total">0</div>
+  </div>
+  <div class="stat-card" id="stat-decrypt">
+    <div class="stat-label">Messages decrypted</div>
+    <div class="stat-value" id="val-decrypt">0</div>
+  </div>
+  <div class="stat-card" id="stat-swap">
+    <div class="stat-label">Key swaps</div>
+    <div class="stat-value" id="val-swap">0</div>
+  </div>
+  <div class="stat-card" id="stat-abort">
+    <div class="stat-label">Sessions aborted</div>
+    <div class="stat-value" id="val-abort">0</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- FEED -->
+  <div id="feed-wrap">
+    <div id="feed-header">
+      <span>Intercept feed</span>
+      <span style="margin-left:auto; color:var(--dim)">newest first ↑</span>
+    </div>
+    <div id="feed">
+      <div id="empty-state">
+        <div class="icon">☠</div>
+        <div>Waiting for traffic…</div>
+        <div style="font-size:11px;">Run mitm.py then start alice.py and bob.py</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Network topology</div>
+      <div class="net-row">
+        <span class="node alice">Alice :5001</span>
+        <span>──►</span>
+        <span class="node mitm">MITM :8080</span>
+      </div>
+      <div class="net-row">
+        <span class="node mitm">MITM :8080</span>
+        <span>──►</span>
+        <span class="node server">Server :9000</span>
+      </div>
+      <div class="net-row">
+        <span class="node server">Server :9000</span>
+        <span>──►</span>
+        <span class="node bob">Bob :5002</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">MITM key fingerprint</div>
+      <div class="fp-box" id="mitm-fp">loading…</div>
+      <div style="margin-top:8px; font-size:10px; color:var(--muted); line-height:1.6;">
+        This fingerprint will NOT match what Alice or Bob show in verified mode — proving the key swap.
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Legend</div>
+      <div style="display:flex; flex-direction:column; gap:6px; margin-top:4px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="badge badge-key_swap">KEY SWAP</span>
+          <span style="color:var(--muted); font-size:11px;">RSA public key replaced</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="badge badge-decrypted">DECRYPTED</span>
+          <span style="color:var(--muted); font-size:11px;">AES-GCM plaintext recovered</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="badge badge-session_key">SESSION KEY</span>
+          <span style="color:var(--muted); font-size:11px;">AES key intercepted</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="badge badge-session_abort">ABORT</span>
+          <span style="color:var(--muted); font-size:11px;">Fingerprint check defeated MITM</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">About</div>
+      <div style="font-size:11px; color:var(--muted); line-height:1.7;">
+        CyberPeace Foundation · JIIT Noida<br>
+        Sanskar Phougat · B.Tech ECE<br>
+        MITM &amp; E2E Encryption Demo
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div id="footer-bar">
+  <span>API: http://127.0.0.1:7000/api/log</span>
+  <span class="sep">|</span>
+  <span>Polling every 1s</span>
+  <span id="poll-status" class="ok">● connected</span>
+</div>
+
+<script>
+  const API_LOG   = "http://127.0.0.1:7000/api/log";
+  const API_STATS = "http://127.0.0.1:7000/api/stats";
+
+  let lastCount = 0;
+
+  // ── Clock ──────────────────────────────────────────────
+  function updateClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2,'0');
+    const m = String(now.getMinutes()).padStart(2,'0');
+    const s = String(now.getSeconds()).padStart(2,'0');
+    document.getElementById('clock').textContent = `${h}:${m}:${s}`;
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // ── Render feed ────────────────────────────────────────
+  function badgeClass(event) {
+    const map = {
+      'KEY_SWAP':      'badge-key_swap',
+      'DECRYPTED':     'badge-decrypted',
+      'SESSION_KEY':   'badge-session_key',
+      'SESSION_ABORT': 'badge-session_abort',
+      'RELAYED':       'badge-relayed',
+    };
+    return map[event] || 'badge-relayed';
+  }
+
+  function badgeLabel(event) {
+    const map = {
+      'KEY_SWAP':      'KEY SWAP',
+      'DECRYPTED':     'DECRYPTED',
+      'SESSION_KEY':   'SESSION KEY',
+      'SESSION_ABORT': 'ABORT',
+      'RELAYED':       'RELAY',
+    };
+    return map[event] || event;
+  }
+
+  function contentClass(event) {
+    if (event === 'DECRYPTED')     return 'entry-content decrypted';
+    if (event === 'KEY_SWAP')      return 'entry-content keyswap';
+    if (event === 'SESSION_ABORT') return 'entry-content abort';
+    return 'entry-content';
+  }
+
+  function renderLog(entries) {
+    const feed = document.getElementById('feed');
+    const empty = document.getElementById('empty-state');
+
+    if (entries.length === 0) {
+      if (empty) empty.style.display = 'flex';
+      return;
+    }
+    if (empty) empty.style.display = 'none';
+
+    // Only re-render if new entries arrived
+    if (entries.length === lastCount) return;
+    lastCount = entries.length;
+
+    // Build HTML (reversed so newest is at top via column-reverse)
+    const html = entries.map(e => {
+      const bClass = badgeClass(e.event);
+      const cClass = contentClass(e.event);
+      const label  = badgeLabel(e.event);
+      return `
+        <div class="entry">
+          <span class="entry-time">${e.time}</span>
+          <span class="badge ${bClass}">${label}</span>
+          <span class="entry-sender">${e.sender || ''}</span>
+          <span class="${cClass}">${escapeHtml(e.content || '')}</span>
+        </div>`;
+    }).join('');
+
+    feed.innerHTML = html;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Update stats ───────────────────────────────────────
+  function updateStats(stats) {
+    document.getElementById('val-total').textContent   = stats.total   ?? 0;
+    document.getElementById('val-decrypt').textContent = stats.decrypted ?? 0;
+    document.getElementById('val-swap').textContent    = stats.key_swaps ?? 0;
+    document.getElementById('val-abort').textContent   = stats.aborts   ?? 0;
+  }
+
+  // ── Poll ───────────────────────────────────────────────
+  async function poll() {
+    const pollEl = document.getElementById('poll-status');
+    try {
+      const [logRes, statsRes] = await Promise.all([
+        fetch(API_LOG),
+        fetch(API_STATS),
+      ]);
+      const log   = await logRes.json();
+      const stats = await statsRes.json();
+      renderLog(log);
+      updateStats(stats);
+
+      // Try to show MITM fingerprint from stats if not yet loaded
+      if (document.getElementById('mitm-fp').textContent === 'loading…') {
+        fetchFingerprint();
+      }
+
+      pollEl.textContent = '● connected';
+      pollEl.className   = 'ok';
+    } catch (e) {
+      pollEl.textContent = '● disconnected — is mitm.py running?';
+      pollEl.className   = 'err';
+    }
+  }
+
+  async function fetchFingerprint() {
+    // The fingerprint is printed in the MITM terminal; we expose it via a simple
+    // endpoint if we add one — for now derive it from the first KEY_SWAP event content
+    try {
+      const res  = await fetch(API_LOG);
+      const log  = await res.json();
+      const swap = log.find(e => e.event === 'KEY_SWAP');
+      if (swap) {
+        document.getElementById('mitm-fp').textContent =
+          'See MITM terminal for fingerprint';
+      }
+    } catch (_) {}
+  }
+
+  setInterval(poll, 1000);
+  poll();
+</script>
+
+</body>
+</html>

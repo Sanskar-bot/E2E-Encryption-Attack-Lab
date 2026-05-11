@@ -1,0 +1,32 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Packet captures & evidence (personal, not for repo)
+*.pcapng
+*.pcap
+*.cap
+
+# Screenshots and report (local evidence, not for repo)
+screenshots/
+report/
+*.pdf
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# mitmproxy state files
+.mitmproxy/
